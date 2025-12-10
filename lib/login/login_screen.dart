@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_registration_test/auth/auth_service.dart';
+import 'package:mobile_registration_test/login/authoriszed_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,6 +12,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _codeController = TextEditingController();
+  final AuthServise _authServise = AuthServise();
 
   bool _loading = false;
   bool _code = false;
@@ -19,6 +22,22 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailController.dispose();
     _codeController.dispose();
     super.dispose();
+  }
+
+  void _showSnackBarMessage(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  bool _isEmailValid(String email) {
+    if (email.isEmpty) {
+      _showSnackBarMessage('Enter your email');
+      return false;
+    }
+    if (!email.contains('@') || !email.contains('.')) {
+      _showSnackBarMessage('Email is not valid');
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -101,8 +120,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Container(
                       margin: const EdgeInsets.only(top: 8),
                       padding: const EdgeInsets.all(20),
@@ -161,8 +182,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               decoration: InputDecoration(
                                 labelText: 'Code from email',
                                 hintText: '12345',
-                                prefixIcon:
-                                    const Icon(Icons.lock_outline_rounded),
+                                prefixIcon: const Icon(
+                                  Icons.lock_outline_rounded,
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
@@ -176,10 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
-                                onPressed: _loading
-                                    ? null
-                                    : () {
-                                      },
+                                onPressed: _loading ? null : () {},
                                 child: const Text('Send code again'),
                               ),
                             ),
@@ -193,14 +212,70 @@ class _LoginScreenState extends State<LoginScreen> {
                             SizedBox(
                               height: 52,
                               child: FilledButton(
-                                onPressed: () {
-                                  setState(() {
-                                    if (!_code) {
-                                      _code = true;
-                                    } else {
-                                      
+                                onPressed: () async {
+                                  final email = _emailController.text
+                                      .toLowerCase()
+                                      .trim();
+
+                                  if (!_isEmailValid(email)) {
+                                    return;
+                                  }
+                                  if (!_code) {
+                                    setState(() => _loading = true);
+                                    try {
+                                      await _authServise.requestCode(email);
+                                      setState(() {
+                                        _code = true;
+                                      });
+                                      _showSnackBarMessage(
+                                        'Code is sent to your email.',
+                                      );
+                                    } catch (error) {
+                                      _showSnackBarMessage(
+                                        'Failed to send you code.',
+                                      );
+                                    } finally {
+                                      setState(() {
+                                        _loading = false;
+                                      });
                                     }
-                                  });
+                                  } else {
+                                    final code = _codeController.text
+                                        .toLowerCase()
+                                        .trim();
+
+                                    if (code.isEmpty) {
+                                      _showSnackBarMessage('Enter the code.');
+                                      return;
+                                    }
+
+                                    setState(() {
+                                      _loading = true;
+                                    });
+
+                                    try {
+                                      final tokens = await _authServise
+                                          .confirmCode(email, code);
+                                          await _authServise.saveToken(tokens);
+                                      final userId = await _authServise
+                                          .getUserId(tokens.jwt);
+
+                                      if (!mounted) return;
+
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) => 
+                                          AuthorizedScreen(userId: userId),
+                                          )
+                                      );
+                                    } catch (error) {
+                                      _showSnackBarMessage('Failed to login');
+                                    } finally {
+                                      setState(() {
+                                        _loading = false;
+                                      });
+                                    }
+                                  }
                                 },
                                 style: FilledButton.styleFrom(
                                   backgroundColor: Color(0xFFFFC727),

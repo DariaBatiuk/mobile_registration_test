@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_registration_test/auth/auth_screen.dart';
 import 'package:mobile_registration_test/login/login_screen.dart';
 
 void main() {
@@ -16,7 +17,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const LoginScreen(),
+      home: const AuthScreen(),
     );
   }
 }
